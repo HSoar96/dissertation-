@@ -16,6 +16,11 @@ calibration_points = []
 calibration_step = 0
 calibrated = False
 
+# Create socket connection
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Adjust IP address and port as needed
+client_socket.connect(('192.168.1.17', 4747))  
+
 # Calibration function
 def calibrate_distance():
     global calibration_step
@@ -59,10 +64,6 @@ def calibrate_distance():
     if calibration_step >= 2:
         calibrated = True
 
-# Create socket connection
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect(('127.0.0.1', 12345))  # Adjust IP address and port as needed
-
 # Main loop
 try:
     while cap.isOpened():
@@ -85,15 +86,18 @@ try:
         # Send data over socket
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
-                wrist_landmark = hand_landmarks.landmark[0]
-                thumb_landmark = hand_landmarks.landmark[4]
-                distance = math.sqrt((wrist_landmark.x - thumb_landmark.x)**2 + (wrist_landmark.y - thumb_landmark.y)**2 + (wrist_landmark.z - thumb_landmark.z)**2)
-                screen_x = int(thumb_landmark.x * frame.shape[1])
-                screen_y = int((1 - thumb_landmark.y) * frame.shape[0])
+                # Look between index finger tip landmark 8 and thumb tip landmark 4
+                index_finger_tip_landmark = hand_landmarks.landmark[8]
+                thumb_tip_landmark = hand_landmarks.landmark[4]
+
+                # Calculate the distance between index finger tip and thumb tip
+                distance = math.sqrt((index_finger_tip_landmark.x - thumb_tip_landmark.x)**2 + 
+                                     (index_finger_tip_landmark.y - thumb_tip_landmark.y)**2 + 
+                                     (index_finger_tip_landmark.z - thumb_tip_landmark.z)**2)
 
                 # Calculate X and Y coordinates on 10x10 grid
-                grid_x = min(max(int(thumb_landmark.x * 10), 0), 9)  # Ensure grid_x is between 0 and 9
-                grid_y = min(max(int((1 - thumb_landmark.y) * 10), 0), 9)  # Ensure grid_y is between 0 and 9
+                grid_x = min(max(int(thumb_tip_landmark.x * 10), 0), 9)  # Ensure grid_x is between 0 and 9
+                grid_y = min(max(int((1 - thumb_tip_landmark.y) * 10), 0), 9)  # Ensure grid_y is between 0 and 9
                 
                 # Serialize data
                 data = struct.pack('fii', distance, grid_x, grid_y)
