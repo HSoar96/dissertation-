@@ -3,6 +3,7 @@ import cv2
 import mediapipe as mp
 import math
 import struct
+import numpy as np
 
 # Initialize mediapipe hand model
 mp_hands = mp.solutions.hands
@@ -20,6 +21,40 @@ calibrated = False
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Adjust IP address and port as needed
 client_socket.connect(('192.168.1.17', 4747))  
+
+def draw_hexagon(img, center, size, color, thickness, alpha):
+    points = []
+    for i in range(6):
+          # starting at 30 degrees for flat top hexagon to make it less jaring on the eyes.
+        angle_deg = 60 * i + 30
+        angle_rad = math.pi / 180 * angle_deg
+        point = (int(center[0] + size * math.cos(angle_rad)),
+                 int(center[1] + size * math.sin(angle_rad)))
+        points.append(point)
+    points = np.array(points, np.int32)
+    overlay = img.copy()
+    cv2.polylines(overlay, [points], isClosed=True, color=color, thickness=thickness)
+    cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
+
+def draw_hexagonal_grid(img, grid_size, hex_size):
+    h, w = img.shape[:2]
+    # Calculate horizontal and vertical space to maintain grid proportions.
+    # 80% used to add some padding around the grid.
+    horizontal_space = w * 0.8
+    vertical_space = h * 0.8
+    start_x = (w - horizontal_space) / 2
+    start_y = (h - vertical_space) / 2
+
+    # Draw rows of hexagons
+    for row in range(grid_size):
+        for col in range(grid_size):
+            x = start_x + col * hex_size * math.sqrt(3)
+            y = start_y + row * hex_size * 1.5
+            if row % 2 == 1:
+                # Offset for every second row
+                x += hex_size * 0.875
+            draw_hexagon(img, (int(x), int(y)), int(hex_size), (0,255,0), 2, 0.25)
+
 
 # Calibration function
 def calibrate_distance():
@@ -82,6 +117,12 @@ try:
         if not calibrated:
             calibrate_distance()
             continue
+
+        # Define hexagon size based on frame width
+        hex_size = int((frame.shape[1] * 0.8) / (10 * 1.75))
+
+        # Draw the hexagonal grid
+        draw_hexagonal_grid(frame, 10, hex_size)
 
         # Send data over socket
         if results.multi_hand_landmarks:
