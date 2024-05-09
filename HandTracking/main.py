@@ -17,6 +17,9 @@ calibration_points = []
 calibration_step = 0
 calibrated = False
 
+grid_modifier = 0.8
+hex_grid_size = 10
+
 # Create socket connection
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Adjust IP address and port as needed
@@ -40,8 +43,8 @@ def draw_hexagonal_grid(img, grid_size, hex_size):
     h, w = img.shape[:2]
     # Calculate horizontal and vertical space to maintain grid proportions.
     # 80% used to add some padding around the grid.
-    horizontal_space = w * 0.8
-    vertical_space = h * 0.8
+    horizontal_space = w *grid_modifier
+    vertical_space = h * grid_modifier
     start_x = (w - horizontal_space) / 2
     start_y = (h - vertical_space) / 2
 
@@ -54,6 +57,36 @@ def draw_hexagonal_grid(img, grid_size, hex_size):
                 # Offset for every second row
                 x += hex_size * 0.875
             draw_hexagon(img, (int(x), int(y)), int(hex_size), (0,255,0), 2, 0.25)
+
+def get_hexagon_grid_pos(x,y, img, grid_size, hex_size):
+    h, w = img.shape[:2]
+
+    # Calculate the start of the grid based on frame dimensions
+    horizontal_space = w * grid_modifier
+    vertical_space = h * grid_modifier
+    # Hex size removed to ensure its the starting point of the grid not the center
+    start_x = (w - horizontal_space) / 2 - (hex_size)
+    start_y = (h - vertical_space) / 2 - (hex_size)
+    
+    # # Adjust x and y relative to the grid start
+    x -= start_x
+    y -= start_y
+
+    row = int(y // (hex_size * 1.5))
+    
+    # Adjust column calculation for staggered rows
+    if row % 2 == 1:
+        # Account for staggered row offset
+        x -= hex_size * 0.875
+    
+    # Calculate column
+    col = int(x // (hex_size * math.sqrt(3)))
+    
+    # Clamp values to ensure they fall within the grid size limits
+    col = max(0, min(col, grid_size - 1))
+    row = max(0, min(row, grid_size - 1))
+
+    return col, row
 
 
 # Calibration function
@@ -122,7 +155,7 @@ try:
         hex_size = int((frame.shape[1] * 0.8) / (10 * 1.75))
 
         # Draw the hexagonal grid
-        draw_hexagonal_grid(frame, 10, hex_size)
+        draw_hexagonal_grid(frame, hex_grid_size, hex_size)
 
         # Send data over socket
         if results.multi_hand_landmarks:
@@ -135,16 +168,29 @@ try:
                 distance = math.sqrt((index_finger_tip_landmark.x - thumb_tip_landmark.x)**2 + 
                                      (index_finger_tip_landmark.y - thumb_tip_landmark.y)**2 + 
                                      (index_finger_tip_landmark.z - thumb_tip_landmark.z)**2)
+                
+                # Display the distance on the frame
+                cv2.putText(frame, f'Distance: {distance}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-                # Calculate X and Y coordinates on 10x10 grid
-                grid_x = min(max(int(thumb_tip_landmark.x * 10), 0), 9)  # Ensure grid_x is between 0 and 9
-                grid_y = min(max(int((1 - thumb_tip_landmark.y) * 10), 0), 9)  # Ensure grid_y is between 0 and 9
+                center_x = (index_finger_tip_landmark.x + thumb_tip_landmark.x) / 2 * frame.shape[1]
+                center_y = (thumb_tip_landmark.y + index_finger_tip_landmark.y) / 2 * frame.shape[0]
+
+                print("Center X center Y = ", center_x,center_y)
+
+                # Draw a dot to show the calculated position.
+                cv2.circle(frame, (int(center_x), int(center_y)), 5, (255, 0, 0), -1)
+
+                # Get the row and column and print it on screen for the user.
+                col, row = get_hexagon_grid_pos(center_x, center_y, frame, hex_grid_size, hex_size)
+                cv2.putText(frame, f'Grid Position: ({col}, {row})', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                 
                 # Serialize data
-                data = struct.pack('fii', distance, grid_x, grid_y)
+                # data = struct.pack('fii', distance, grid_x, grid_y)
+                # print(grid_x)
+                # print(grid_y)
 
                 # Send data over socket
-                client_socket.sendall(data)
+                #client_socket.sendall(data)
 
         # Display output
         cv2.imshow('Hand Tracking', frame)
