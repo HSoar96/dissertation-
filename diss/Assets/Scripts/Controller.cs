@@ -35,19 +35,19 @@ public class Controller : MonoBehaviour
 
     void Update()
     {
-        foreach (var p in Pistons)
-        {
-            // Calculate the distance from the current position to height 0
-            float distanceToZero = 0 - p.transform.position.y;
+        //foreach (var p in Pistons)
+        //{
+            //// Calculate the distance from the current position to height 0
+            //float distanceToZero = 0 - p.transform.position.y;
 
-            // Calculate the movement towards height 0 based on the distance and movement speed
-            float verticalMovement = Mathf.Sign(distanceToZero) * Mathf.Min(Mathf.Abs(distanceToZero), movementSpeed * Time.deltaTime);
+            //// Calculate the movement towards height 0 based on the distance and movement speed
+            //float verticalMovement = Mathf.Sign(distanceToZero) * Mathf.Min(Mathf.Abs(distanceToZero), movementSpeed * Time.deltaTime);
 
-            // Calculate the new position
-            Vector3 newPosition = p.transform.position + Vector3.up * verticalMovement;
+            //// Calculate the new position
+            //Vector3 newPosition = p.transform.position + Vector3.up * verticalMovement;
 
-            // Update the position of the piston
-            p.transform.position = newPosition;
-        }
+            //// Update the position of the piston
+            //p.transform.position = newPosition;
+        //}
     }
 }

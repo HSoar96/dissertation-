@@ -7,6 +7,7 @@ import numpy as np
 import time
 from datetime import datetime
 import csv
+import random
 
 # Initialize mediapipe hand model
 mp_hands = mp.solutions.hands
@@ -24,6 +25,7 @@ grid_modifier = 0.8
 hex_grid_size = 10
 
 artificial_latency = 0
+precision_factor = 0
 
 def create_socket_connection(addr, port):
     # Create socket connection
@@ -37,27 +39,40 @@ def alter_latency(input):
     match int(input):
         case 0:
             artificial_latency = 0
-            print(f"Latency set to {artificial_latency}")
             return
         case 1:
             artificial_latency = 30
-            print(f"Latency set to {artificial_latency}")
             return
         case 2:
             artificial_latency = 60
-            print(f"Latency set to {artificial_latency}")
             return
         case 3:
             artificial_latency = 90
-            print(f"Latency set to {artificial_latency}")
             return
         case 4:
             artificial_latency = 120
-            print(f"Latency set to {artificial_latency}")
             return
         case 5:
             artificial_latency = 150
-            print(f"Latency set to {artificial_latency}")
+            return
+        
+def alter_precision(input):
+    global precision_factor
+    match int(input):
+        case 0:
+            precision_factor = 0
+            return
+        case 1:
+            precision_factor = 0.15
+            return
+        case 2:
+            precision_factor = 0.30
+            return
+        case 3:
+            precision_factor = 0.45
+            return
+        case 4:
+            precision_factor = 0.60
             return
 
 def draw_hexagon(img, center, size, color, thickness, alpha):
@@ -153,6 +168,10 @@ def send_data_to_unity(data, client_socket,csv_writer):
     except Exception as e:
         print("An error occurred:", e)
 
+def alter_distance_value(distance):
+    limits = precision_factor * distance
+    return random.uniform(-limits, limits)
+
 def main():
 
     # Setup CSV logging
@@ -160,6 +179,7 @@ def main():
 
     client_socket = create_socket_connection('127.0.0.1', 2525)
 
+    alter_precision(input("Awaiting precision input..."))
     # Changes latency and sends it to unity for configuration
     alter_latency(input("Awaiting latency input..."))
     packed_data = struct.pack('<i', artificial_latency)
@@ -209,6 +229,9 @@ def main():
                     # Get the row and column and print it on screen for the user.
                     col, row = get_hexagon_grid_pos(center_x, center_y, frame, hex_grid_size, hex_size)
                     cv2.putText(frame, f'Grid Position: ({col}, {row})', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                    # Alter distance with the precision multiplier
+                    distance += alter_distance_value(distance)
 
                     # Serialize data
                     data = struct.pack('fii', distance, col, row)
