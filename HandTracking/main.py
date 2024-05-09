@@ -146,6 +146,14 @@ def csv_log():
     writer.writerow(["Timestamp", "Latency (ms)", "Artifical latency (ms)"])
     return f, writer
 
+def get_distance_between_fingers(index_finger_tip_landmark, thumb_tip_landmark):
+    
+    # Calculate the distance between index finger tip and thumb tip
+    return math.sqrt(
+                    (index_finger_tip_landmark.x - thumb_tip_landmark.x)**2 + 
+                    (index_finger_tip_landmark.y - thumb_tip_landmark.y)**2 + 
+                    (index_finger_tip_landmark.z - thumb_tip_landmark.z)**2)
+
 def send_data_to_unity(data, client_socket,csv_writer):   
     try:
         # Timestamp before sending
@@ -168,7 +176,7 @@ def send_data_to_unity(data, client_socket,csv_writer):
     except Exception as e:
         print("An error occurred:", e)
 
-def alter_distance_value(distance):
+def alter_distance_value(distance, precision_factor):
     limits = precision_factor * distance
     return random.uniform(-limits, limits)
 
@@ -213,9 +221,7 @@ def main():
                     thumb_tip_landmark = hand_landmarks.landmark[4]
 
                     # Calculate the distance between index finger tip and thumb tip
-                    distance = math.sqrt((index_finger_tip_landmark.x - thumb_tip_landmark.x)**2 + 
-                                         (index_finger_tip_landmark.y - thumb_tip_landmark.y)**2 + 
-                                         (index_finger_tip_landmark.z - thumb_tip_landmark.z)**2)
+                    distance = get_distance_between_fingers(index_finger_tip_landmark,thumb_tip_landmark)
 
                     # Display the distance on the frame
                     cv2.putText(frame, f'Distance: {distance}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
@@ -231,7 +237,7 @@ def main():
                     cv2.putText(frame, f'Grid Position: ({col}, {row})', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
                     # Alter distance with the precision multiplier
-                    distance += alter_distance_value(distance)
+                    distance += alter_distance_value(distance, precision_factor)
 
                     # Serialize data
                     data = struct.pack('fii', distance, col, row)
