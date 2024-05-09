@@ -20,10 +20,11 @@ calibrated = False
 grid_modifier = 0.8
 hex_grid_size = 10
 
-# Create socket connection
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# Adjust IP address and port as needed
-client_socket.connect(('127.0.0.1', 2525))  
+def create_socket_connection(addr, port):
+    # Create socket connection
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Adjust IP address and port as needed
+    client_socket.connect((addr, port))
 
 def draw_hexagon(img, center, size, color, thickness, alpha):
     points = []
@@ -88,68 +89,73 @@ def get_hexagon_grid_pos(x,y, img, grid_size, hex_size):
 
     return col, row
 
-# Main loop
-try:
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            print("Failed to capture frame")
-            break
+def main():
+    client_socket = create_socket_connection('127.0.0.1', 2525)
+    # Main loop
+    try:
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                print("Failed to capture frame")
+                break
 
-        # Convert BGR image to RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert BGR image to RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Process image
-        results = hands.process(rgb_frame)
+            # Process image
+            results = hands.process(rgb_frame)
 
-        # Define hexagon size based on frame width
-        hex_size = int((frame.shape[1] * 0.8) / (10 * 1.75))
+            # Define hexagon size based on frame width
+            hex_size = int((frame.shape[1] * 0.8) / (10 * 1.75))
 
-        # Draw the hexagonal grid
-        draw_hexagonal_grid(frame, hex_grid_size, hex_size)
+            # Draw the hexagonal grid
+            draw_hexagonal_grid(frame, hex_grid_size, hex_size)
 
-        # Send data over socket
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                # Look between index finger tip landmark 8 and thumb tip landmark 4
-                index_finger_tip_landmark = hand_landmarks.landmark[8]
-                thumb_tip_landmark = hand_landmarks.landmark[4]
+            # Send data over socket
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    # Look between index finger tip landmark 8 and thumb tip landmark 4
+                    index_finger_tip_landmark = hand_landmarks.landmark[8]
+                    thumb_tip_landmark = hand_landmarks.landmark[4]
 
-                # Calculate the distance between index finger tip and thumb tip
-                distance = math.sqrt((index_finger_tip_landmark.x - thumb_tip_landmark.x)**2 + 
-                                     (index_finger_tip_landmark.y - thumb_tip_landmark.y)**2 + 
-                                     (index_finger_tip_landmark.z - thumb_tip_landmark.z)**2)
-                
-                # Display the distance on the frame
-                cv2.putText(frame, f'Distance: {distance}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                    # Calculate the distance between index finger tip and thumb tip
+                    distance = math.sqrt((index_finger_tip_landmark.x - thumb_tip_landmark.x)**2 + 
+                                         (index_finger_tip_landmark.y - thumb_tip_landmark.y)**2 + 
+                                         (index_finger_tip_landmark.z - thumb_tip_landmark.z)**2)
 
-                center_x = (index_finger_tip_landmark.x + thumb_tip_landmark.x) / 2 * frame.shape[1]
-                center_y = (thumb_tip_landmark.y + index_finger_tip_landmark.y) / 2 * frame.shape[0]
+                    # Display the distance on the frame
+                    cv2.putText(frame, f'Distance: {distance}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-                # Draw a dot to show the calculated position.
-                cv2.circle(frame, (int(center_x), int(center_y)), 5, (255, 0, 0), -1)
+                    center_x = (index_finger_tip_landmark.x + thumb_tip_landmark.x) / 2 * frame.shape[1]
+                    center_y = (thumb_tip_landmark.y + index_finger_tip_landmark.y) / 2 * frame.shape[0]
 
-                # Get the row and column and print it on screen for the user.
-                col, row = get_hexagon_grid_pos(center_x, center_y, frame, hex_grid_size, hex_size)
-                cv2.putText(frame, f'Grid Position: ({col}, {row})', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-                
-                # Serialize data
-                data = struct.pack('fii', distance, col, row)
+                    # Draw a dot to show the calculated position.
+                    cv2.circle(frame, (int(center_x), int(center_y)), 5, (255, 0, 0), -1)
 
-                # Send data over socket
-                client_socket.sendall(data)
+                    # Get the row and column and print it on screen for the user.
+                    col, row = get_hexagon_grid_pos(center_x, center_y, frame, hex_grid_size, hex_size)
+                    cv2.putText(frame, f'Grid Position: ({col}, {row})', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-        # Display output
-        cv2.imshow('Hand Tracking', frame)
+                    # Serialize data
+                    data = struct.pack('fii', distance, col, row)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                    # Send data over socket
+                    client_socket.sendall(data)
 
-except Exception as e:
-    print("An error occurred:", e)
+            # Display output
+            cv2.imshow('Hand Tracking', frame)
 
-finally:
-    # Release resources
-    client_socket.close()
-    cap.release()
-    cv2.destroyAllWindows()
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    except Exception as e:
+        print("An error occurred:", e)
+
+    finally:
+        # Release resources
+        client_socket.close()
+        cap.release()
+        cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
