@@ -88,50 +88,6 @@ def get_hexagon_grid_pos(x,y, img, grid_size, hex_size):
 
     return col, row
 
-
-# Calibration function
-def calibrate_distance():
-    global calibration_step
-    global calibration_points
-    global calibrated
-    
-    ret, frame = cap.read()
-    if not ret:
-        print("Failed to capture frame")
-        return
-
-    # Convert BGR image to RGB
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    # Process image
-    results = hands.process(rgb_frame)
-
-    # Draw instructions
-    cv2.putText(frame, "Move your hand as far as possible and press 'f'", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-    cv2.putText(frame, "Move your hand as close as possible and press 'c'", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-    # Draw hand landmarks if hand is detected
-    if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
-            for point in hand_landmarks.landmark:
-                x = int(point.x * frame.shape[1])
-                y = int(point.y * frame.shape[0])
-                cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-
-    # Display output
-    cv2.imshow('Hand Tracking', frame)
-
-    key = cv2.waitKey(1)
-    if key == ord('f'):
-        calibration_points.append(calibration_step)
-        calibration_step += 1
-    elif key == ord('c'):
-        calibration_points.append(calibration_step)
-        calibration_step += 1
-
-    if calibration_step >= 2:
-        calibrated = True
-
 # Main loop
 try:
     while cap.isOpened():
@@ -145,11 +101,6 @@ try:
 
         # Process image
         results = hands.process(rgb_frame)
-
-        # Calibration loop
-        if not calibrated:
-            calibrate_distance()
-            continue
 
         # Define hexagon size based on frame width
         hex_size = int((frame.shape[1] * 0.8) / (10 * 1.75))
