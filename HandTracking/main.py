@@ -126,8 +126,6 @@ try:
                 center_x = (index_finger_tip_landmark.x + thumb_tip_landmark.x) / 2 * frame.shape[1]
                 center_y = (thumb_tip_landmark.y + index_finger_tip_landmark.y) / 2 * frame.shape[0]
 
-                print("Center X center Y = ", center_x,center_y)
-
                 # Draw a dot to show the calculated position.
                 cv2.circle(frame, (int(center_x), int(center_y)), 5, (255, 0, 0), -1)
 
@@ -137,8 +135,6 @@ try:
                 
                 # Serialize data
                 # data = struct.pack('fii', distance, grid_x, grid_y)
-                # print(grid_x)
-                # print(grid_y)
 
                 # Send data over socket
                 #client_socket.sendall(data)
