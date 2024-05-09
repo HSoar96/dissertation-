@@ -1,6 +1,4 @@
-from asyncio.windows_events import NULL
 import socket
-from types import NoneType
 import cv2
 import mediapipe as mp
 import math
@@ -25,12 +23,42 @@ calibrated = False
 grid_modifier = 0.8
 hex_grid_size = 10
 
+artificial_latency = 0
+
 def create_socket_connection(addr, port):
     # Create socket connection
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Adjust IP address and port as needed
     client_socket.connect((addr, port))
     return client_socket
+
+def alter_latency(input):
+    global artificial_latency
+    match int(input):
+        case 0:
+            artificial_latency = 0
+            print(f"Latency set to {artificial_latency}")
+            return
+        case 1:
+            artificial_latency = 30
+            print(f"Latency set to {artificial_latency}")
+            return
+        case 2:
+            artificial_latency = 60
+            print(f"Latency set to {artificial_latency}")
+            return
+        case 3:
+            artificial_latency = 90
+            print(f"Latency set to {artificial_latency}")
+            return
+        case 4:
+            artificial_latency = 120
+            print(f"Latency set to {artificial_latency}")
+            return
+        case 5:
+            artificial_latency = 150
+            print(f"Latency set to {artificial_latency}")
+            return
 
 def draw_hexagon(img, center, size, color, thickness, alpha):
     points = []
@@ -100,16 +128,15 @@ def csv_log():
     filename = f"latency_log_{timestamp}.csv"
     f = open(filename, mode='w', newline='')
     writer = csv.writer(f)
-    writer.writerow(["Timestamp", "Latency (ms)"])
+    writer.writerow(["Timestamp", "Latency (ms)", "Artifical latency (ms)"])
     return f, writer
 
-def send_data_to_unity(data, client_socket,csv_writer):
-    if client_socket == NoneType:
-        return
-    
+def send_data_to_unity(data, client_socket,csv_writer):   
     try:
         # Timestamp before sending
         send_time = time.perf_counter()
+        # Waits to send the data to add variable artifical latency
+        time.sleep(artificial_latency/1000)
         client_socket.sendall(data)
 
         # Wait for response
@@ -121,7 +148,7 @@ def send_data_to_unity(data, client_socket,csv_writer):
         latency_ms = latency * 1000
         # Log to CSV
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        csv_writer.writerow([current_time, f"{latency_ms:.2f}"])
+        csv_writer.writerow([current_time, f"{latency_ms:.2f}", artificial_latency])
 
     except Exception as e:
         print("An error occurred:", e)
@@ -132,6 +159,12 @@ def main():
     file, csv_writer = csv_log()
 
     client_socket = create_socket_connection('127.0.0.1', 2525)
+
+    # Changes latency and sends it to unity for configuration
+    alter_latency(input("Awaiting latency input..."))
+    packed_data = struct.pack('<i', artificial_latency)
+    client_socket.sendall(packed_data)
+
     # Main loop
     try:
         while cap.isOpened():

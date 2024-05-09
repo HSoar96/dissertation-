@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System;
 using System.Text;
+using System.Collections;
 
 public class HandTrackingReceiver : MonoBehaviour
 {
@@ -22,6 +23,9 @@ public class HandTrackingReceiver : MonoBehaviour
     private TcpClient client;
     private NetworkStream stream;
 
+    private bool initialDataRecieved = false;
+    private float artificalLatency = 0;
+
     private void Start()
     {
         movementMultiplier *= 1000.0f;
@@ -37,23 +41,33 @@ public class HandTrackingReceiver : MonoBehaviour
     {
         if (stream.DataAvailable)
         {
-            SendAcknowledgment();
-            // 4 bytes for float (distance), 4 bytes for int (x), 4 bytes for int (y)
-            byte[] dataBuffer = new byte[12]; 
-            stream.Read(dataBuffer, 0, dataBuffer.Length);
-
-            using (MemoryStream memoryStream = new MemoryStream(dataBuffer))
+            if(!initialDataRecieved)
             {
-                float distance = BitConverter.ToSingle(dataBuffer, 0);
-                int screen_x = BitConverter.ToInt32(dataBuffer, 4);
-                int screen_y = BitConverter.ToInt32(dataBuffer, 8);
-                ProcessData(distance, screen_x, screen_y);
+                byte[] dataBuffer = new byte[4];
+                stream.Read(dataBuffer, 0, dataBuffer.Length);
+                artificalLatency = BitConverter.ToInt32(dataBuffer, 0) / 1000.0f;
+                initialDataRecieved = true;
+                SendAcknowledgment();
             }
+            else
+            {
+                // 4 bytes for float (distance), 4 bytes for int (x), 4 bytes for int (y)
+                byte[] dataBuffer = new byte[12]; 
+                stream.Read(dataBuffer, 0, dataBuffer.Length);
+
+                using MemoryStream memoryStream = new MemoryStream(dataBuffer);
+                    ProcessData(dataBuffer);
+            }
+            
         }
     }
 
-    private void ProcessData(float distance, int screen_x, int screen_y)
+    private void ProcessData(byte[] dataBuffer)
     {
+        float distance = BitConverter.ToSingle(dataBuffer, 0);
+        int screen_x = BitConverter.ToInt32(dataBuffer, 4);
+        int screen_y = BitConverter.ToInt32(dataBuffer, 8);
+
         objectsArray = controller.Pistons;
         float verticalMovement;
 
@@ -61,7 +75,6 @@ public class HandTrackingReceiver : MonoBehaviour
             verticalMovement = distance;
         else
             verticalMovement = distance * -1.0f;
-
 
         // Apply the movement to the object in the 2D array
         GameObject obj = objectsArray[screen_x, screen_y];
@@ -71,10 +84,11 @@ public class HandTrackingReceiver : MonoBehaviour
             Vector3 newPosition = obj.transform.position + Vector3.up * verticalMovement * movementMultiplier * Time.deltaTime;
             newPosition.y = Mathf.Clamp(newPosition.y, minVerticalMovement, maxVerticalMovement);
 
-
             // Update the position of the object
             obj.transform.position = newPosition;
         }
+
+        SendAcknowledgment();
     }
 
     private void SendAcknowledgment()
