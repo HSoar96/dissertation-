@@ -23,7 +23,7 @@ hex_grid_size = 10
 # Create socket connection
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Adjust IP address and port as needed
-client_socket.connect(('192.168.1.17', 4747))  
+client_socket.connect(('127.0.0.1', 2525))  
 
 def draw_hexagon(img, center, size, color, thickness, alpha):
     points = []
@@ -134,10 +134,10 @@ try:
                 cv2.putText(frame, f'Grid Position: ({col}, {row})', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                 
                 # Serialize data
-                # data = struct.pack('fii', distance, grid_x, grid_y)
+                data = struct.pack('fii', distance, col, row)
 
                 # Send data over socket
-                #client_socket.sendall(data)
+                client_socket.sendall(data)
 
         # Display output
         cv2.imshow('Hand Tracking', frame)

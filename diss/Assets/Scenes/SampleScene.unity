@@ -168,7 +168,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ipAddress: 127.0.0.1
-  port: 12345
+  port: 2525
   controller: {fileID: 1813173181}
   movementMultiplier: 1000
   minVerticalMovement: -5

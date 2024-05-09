@@ -10,9 +10,9 @@ public class HandTrackingReceiver : MonoBehaviour
     // IP address of the Python script
     public string ipAddress = "127.0.0.1";
     // Port to listen on
-    public int port = 12345;  
+    public int port = 2525;  
     public Controller controller;
-    public float movementMultiplier = 1000.0f;
+    public float movementMultiplier = 1.0f;
     public float minVerticalMovement = 10.0f;
     public float maxVerticalMovement = 10.0f;
 
@@ -23,16 +23,13 @@ public class HandTrackingReceiver : MonoBehaviour
 
     private void Start()
     {
+        movementMultiplier *= 1000.0f;
         listener = new TcpListener(IPAddress.Parse(ipAddress), port);
         listener.Start();
-        Debug.Log("Waiting for connection...");
 
         client = listener.AcceptTcpClient();
         stream = client.GetStream();
 
-        Debug.Log("Connected to Python script.");
-
-        
     }
 
     private void Update()
@@ -48,11 +45,6 @@ public class HandTrackingReceiver : MonoBehaviour
                 float distance = BitConverter.ToSingle(dataBuffer, 0);
                 int screen_x = BitConverter.ToInt32(dataBuffer, 4);
                 int screen_y = BitConverter.ToInt32(dataBuffer, 8);
-
-                Debug.Log(screen_x);
-                Debug.Log(screen_y);
-                Debug.Log(distance);
-
                 ProcessData(distance, screen_x, screen_y);
             }
         }
@@ -63,7 +55,7 @@ public class HandTrackingReceiver : MonoBehaviour
         objectsArray = controller.Pistons;
         float verticalMovement;
 
-        if (distance > 0.3)
+        if (distance > 0.125)
             verticalMovement = distance;
         else
             verticalMovement = distance * -1.0f;
