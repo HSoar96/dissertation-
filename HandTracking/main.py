@@ -1,9 +1,14 @@
+from asyncio.windows_events import NULL
 import socket
+from types import NoneType
 import cv2
 import mediapipe as mp
 import math
 import struct
 import numpy as np
+import time
+from datetime import datetime
+import csv
 
 # Initialize mediapipe hand model
 mp_hands = mp.solutions.hands
@@ -25,6 +30,7 @@ def create_socket_connection(addr, port):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Adjust IP address and port as needed
     client_socket.connect((addr, port))
+    return client_socket
 
 def draw_hexagon(img, center, size, color, thickness, alpha):
     points = []
@@ -89,7 +95,42 @@ def get_hexagon_grid_pos(x,y, img, grid_size, hex_size):
 
     return col, row
 
+def csv_log():
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"latency_log_{timestamp}.csv"
+    f = open(filename, mode='w', newline='')
+    writer = csv.writer(f)
+    writer.writerow(["Timestamp", "Latency (ms)"])
+    return f, writer
+
+def send_data_to_unity(data, client_socket,csv_writer):
+    if client_socket == NoneType:
+        return
+    
+    try:
+        # Timestamp before sending
+        send_time = time.perf_counter()
+        client_socket.sendall(data)
+
+        # Wait for response
+        response = client_socket.recv(1024) 
+        receive_time = time.perf_counter()
+
+        # Calculate latency
+        latency = receive_time - send_time
+        latency_ms = latency * 1000
+        # Log to CSV
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        csv_writer.writerow([current_time, f"{latency_ms:.2f}"])
+
+    except Exception as e:
+        print("An error occurred:", e)
+
 def main():
+
+    # Setup CSV logging
+    file, csv_writer = csv_log()
+
     client_socket = create_socket_connection('127.0.0.1', 2525)
     # Main loop
     try:
@@ -140,7 +181,7 @@ def main():
                     data = struct.pack('fii', distance, col, row)
 
                     # Send data over socket
-                    client_socket.sendall(data)
+                    send_data_to_unity(data, client_socket, csv_writer)
 
             # Display output
             cv2.imshow('Hand Tracking', frame)
@@ -156,6 +197,7 @@ def main():
         client_socket.close()
         cap.release()
         cv2.destroyAllWindows()
+        file.close()
 
 if __name__ == "__main__":
     main()

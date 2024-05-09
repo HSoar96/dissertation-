@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using System;
+using System.Text;
 
 public class HandTrackingReceiver : MonoBehaviour
 {
@@ -36,6 +37,7 @@ public class HandTrackingReceiver : MonoBehaviour
     {
         if (stream.DataAvailable)
         {
+            SendAcknowledgment();
             // 4 bytes for float (distance), 4 bytes for int (x), 4 bytes for int (y)
             byte[] dataBuffer = new byte[12]; 
             stream.Read(dataBuffer, 0, dataBuffer.Length);
@@ -73,6 +75,12 @@ public class HandTrackingReceiver : MonoBehaviour
             // Update the position of the object
             obj.transform.position = newPosition;
         }
+    }
+
+    private void SendAcknowledgment()
+    {
+        byte[] data = Encoding.UTF8.GetBytes("A");
+        client.GetStream().BeginWrite(data, 0, data.Length, null, null);
     }
 
     private void OnDestroy()
